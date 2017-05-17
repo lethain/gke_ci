@@ -21,7 +21,11 @@ so you may want to be a bit more rigorous in your evaluation!
 ## Run locall via `kubectl proxy`
 
 You can play around with this script by running it locally and accessing your
-cluster over the Kubernetes proxy:
+cluster over the Kubernetes proxy. First, run kubectl proxy in some other terminal:
+
+    kubectl proxy
+
+Then:
 
     git clone git@github.com:lethain/gke_ci.git
     virtualen env
