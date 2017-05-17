@@ -1,6 +1,7 @@
 """
 Simple Google PubSub queue consumer to update Kubernetes.
 """
+import copy
 import argparse
 import pprint
 import time
@@ -10,20 +11,6 @@ from collections import defaultdict
 from google.cloud import pubsub
 
 
-"""
-{"id":"c5c37ac1-e89b-44f1-ada8-edf41711dd9a","projectId":"larson-deployment","status":"WORKING",
-"source":{"repoSource":{"projectId":"larson-deployment","repoName":"daedalus","branchName":"master"}},
-"steps":[{"name":"gcr.io/cloud-builders/docker","args":["build","-t","gcr.io/larson-deployment/daedalus:c4efe3da9ff9f2a2d146026eac92ad657dd0479a","."]}],
-"createTime":"2017-05-15T04:38:36.122991Z","startTime":"2017-05-15T04:38:39.405707Z","timeout":"600.000s",
-"images":["gcr.io/larson-deployment/daedalus:c4efe3da9ff9f2a2d146026eac92ad657dd0479a"],
-"logsBucket":"gs://342196402007.cloudbuild-logs.googleusercontent.com",
-"sourceProvenance":{"resolvedRepoSource":{"projectId":"larson-deployment","repoName":"daedalus","commitSha":"c4efe3da9ff9f2a2d146026eac92ad657dd0479a"}},
-"buildTriggerId":"c1add629-8dbe-4e9e-9c51-c0824842f974",
-"logUrl":"https://console.cloud.google.com/gcr/builds/c5c37ac1-e89b-44f1-ada8-edf41711dd9a?project=larson-deployment"}
-{u'buildId': u'c5c37ac1-e89b-44f1-ada8-edf41711dd9a', u'status': u'WORKING'}
-"""
-
-
 def handle(msg, loc, ignore):
     print msg.attributes
     data = json.loads(msg.data)
@@ -31,21 +18,31 @@ def handle(msg, loc, ignore):
     logUrl = data['logUrl']
     images = data['images']
     repo = data['source']['repoSource']['repoName']
-    kub = build_k8s_cli(loc)    
+    ks = build_k8s_cli()
     if status == 'SUCCESS':
         print "[%s] Build succeeded." % (repo,)
-        deps = deployments(kub, ignore)
-        print "[%s] Found deployments: %s." % (repo, deps)
+        deps = deployments(ks, loc, ignore)
         for image in images:
             print "[%s] Updated %s." % (repo, image)
             wo_tag = container_without_tag(image)
-            for dep_cont, dep_link in deps.iteritems():
-                if wo_tag == dep_cont:
-                    print "YES DEPLOY: %s, %s, %s" % (wo_tag, dep_cont, dep_link)
-                    # kubectl patch deployment deployment-example -p '{"spec":{"template":{"spec":{"containers":[{"name":"nginx","image":"nginx:1.11"}]}}}}'
-                    # figure out... some way to do this
-                else:
-                    print "NO, DO NOTDEPLOY: %s, %s, %s" % (wo_tag, dep_cont, dep_link)
+            for dep_cont, deps in deps.iteritems():
+                for dep in deps:
+                    if wo_tag == dep_cont:
+                        changed = False
+                        dep_link = dep['metadata']['selfLink']
+                        curr_containers = copy.deepcopy(dep['spec']['template']['spec']['containers'])
+                        for curr_cont in curr_containers:
+                            old_image = curr_cont['image']
+                            if old_image.startswith(dep_cont):
+                                print "[%s] Upgrading from %s to use %s" % (repo, old_image, image)
+                                curr_cont['image'] = image
+                                changed = True
+
+                        if changed:
+                            update = {"spec": {"template": {"spec": {"containers": curr_containers}}}}
+                            headers = {'Content-Type': 'application/strategic-merge-patch+json'}
+                            r= ks.patch("%s%s" % (loc, dep_link), headers=headers, data=json.dumps(update))
+                            print "[%s] %s from %s\n%s" % (repo, r.status_code, r.request.url, r.content)
 
 
 def container_without_tag(con_str):
@@ -53,11 +50,14 @@ def container_without_tag(con_str):
     return ':'.join(con_str.split(':')[:-1])
 
 
-def deployments(cli, ignore):
+def deployments(cli, loc, ignore):
     container_dep = defaultdict(list)
-    deps = cli('/apis/extensions/v1beta1/deployments').json()['items']
+    deps = cli.get("%s/apis/extensions/v1beta1/deployments" % (loc,)).json()['items']
     for dep in deps:
         name = dep['metadata']['name']
+        # TODO: add some kind of tag in the deployment to indicate
+        #       they should be considered as opposed to defaulting
+        #       everything in
         if dep['metadata']['namespace'] in ignore:
             continue
 
@@ -65,14 +65,15 @@ def deployments(cli, ignore):
         containers = dep['spec']['template']['spec']['containers']
         for container in containers:
             img = container_without_tag(container['image'])
-            container_dep[img].append(dep['metadata']['selfLink'])
+            container_dep[img].append(dep)
     return container_dep
 
 
-def build_k8s_cli(loc):
+def build_k8s_cli():
     s = requests.Session()
     s.verify = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
-    return lambda path : s.get("%s%s" % (loc, path))
+    return s
+#return lambda method, path : s.request(method, "%s%s" % (loc, path))
 
 
 def run(loc, project, ignore, delay):
