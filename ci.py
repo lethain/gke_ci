@@ -80,7 +80,7 @@ def run(loc, project, ignore, delay):
     "Loop endlessly checking for builds."
     client = pubsub.Client()
     topic = client.topic('cloud_builds')
-    s = pubsub.subscription.Subscription('gke_ci', topic=topic)
+    s = pubsub.subscription.Subscription(project, topic=topic)
     while True:
         pulled = s.pull(max_messages=10)
         for ack_id, message in pulled:

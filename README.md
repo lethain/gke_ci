@@ -3,52 +3,66 @@
 Using [Google Container Builder](https://cloud.google.com/container-builder/docs/),
 you can go from pushing code to having a new container built and uploaded into
 [Google Container Registry](https://cloud.google.com/container-registry/), but
-you'll still need to upgrade your deployment yourself.
+you'll still need to upgrade your deployment manually to point to the new version.
 
-Fortunately, Container Builder publishes events into Google PubSub for each build
-into a queue named:
+This package automatically updates deployments based on successful Container Builder builds.
 
-    projects/$PROJECT-NAME/topics/cloud-builds
+The design is fairly simple:
 
-and you can add a Kubernetes deployment runs a single pod, which subscribes to those
-events and triggers updates.
+1. it's a Python script that listens to the Google PubSub
+    queue named `cloud_builds`, which is populated with status messages by Container Builder
+    as it starts and completes builds.
+2. When it see messages with a status of `SUCCESS`, it uses the [Kubernetes API](https://kubernetes.io/docs/api-reference/v1.5/#patch-23)
+    to `PATCH` the existing deployment configuration to use the new version.
 
-This is very much a sketch, not at all a quality solution!
+This works well enough, but I'm only using it for my toy software,
+so you may want to be a bit more rigorous in your evaluation!
 
-## Run Locally
+## Run locall via `kubectl proxy`
 
 You can play around with this script by running it locally and accessing your
 cluster over the Kubernetes proxy:
 
-    git clone <>
+    git clone git@github.com:lethain/gke_ci.git
     virtualen env
     . ./env/bin/activate
     pip install -r requirements
-    python ci.py GKE-PROJECT-ID --loc http://localhost:8001 
+    python ci.py GKE-PROJECT-ID --loc http://localhost:8001
 
 Then trigger a build on Google Container Builder and you're good to go.
 
 ## Run on GKE
 
+*Still a work in progress, will need to hack together a bit over course of this week, but basically just a Dockerfile and a way to inject a few ENV variables.*
 
-Generally approach is:
+First, we need to build the container and upload it:
 
-1. Checkout this repo.
-2. Build a copy for your local container store:
+    git clone git@github.com:lethain/gke_ci.git
+    gcloud preview docker -a
+    docker build -t gcr.io/<YOUR PROJECT>/gke_ci .
+    docker tag CONTAINER_ID gcr.io/<YOUR PROJECT>/gke_ci:0.1
+    gcloud docker -- push gcr.io/<YOUR PROJECT>/gke_ci
 
-        docker build somehow
+Then create a deployment.yaml:
 
-3. Upload the container to your private repo:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    metadata:
+      name: gke_ci
+    spec:
+      replicas: 1
+      template:
+        metadata:
+          labels:
+            app: gke_ci
+        spec:
+          containers:
+          - image: gcr.io/<YOUR PROJECT>/gke_ci:0.1
+            imagePullPolicy: Always
+            name: gke_ci
 
-        blah blah blah
-
-4. Add a subscription in [Google PubSub](https://console.cloud.google.com/cloudpubsub/topicList) named `gke_ci`.
-5. Create a deployment which sets these variables in a file named `gke_ci_deploy.yaml`:
-
-    etc
-
-6. Deploy it:
+Then provision it via:
 
     kubectl apply -f deployment.
 
-7. Deploy some new changes, and see it work! If it doesn't look at the logs.
+After that, you should be good to go!
