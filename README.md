@@ -37,15 +37,15 @@ Then trigger a build on Google Container Builder and you're good to go.
 
 ## Run on GKE
 
-*Still a work in progress, will need to hack together a bit over course of this week, but basically just a Dockerfile and a way to inject a few ENV variables.*
+First, we need to build the container and upload it (I've had some trouble getting these instructions work,
+I actually deploy using the third method described below):
 
-First, we need to build the container and upload it:
-
+    export GP="your-project"
     git clone git@github.com:lethain/gke_ci.git
-    gcloud preview docker -a
-    docker build -t gcr.io/<YOUR PROJECT>/gke_ci .
-    docker tag CONTAINER_ID gcr.io/<YOUR PROJECT>/gke_ci:0.1
-    gcloud docker -- push gcr.io/<YOUR PROJECT>/gke_ci
+    gcloud docker -a
+    docker build -t gcr.io/$GP/gke-ci .
+    docker tag CONTAINER_ID gcr.io/$GP/gke-ci:0.1
+    gcloud docker -- push gcr.io/$GP/gke-ci
 
 Then create a deployment.yaml:
 
@@ -64,9 +64,28 @@ Then create a deployment.yaml:
           - image: gcr.io/<YOUR PROJECT>/gke_ci:0.1
             imagePullPolicy: Always
             name: gke_ci
+	    command:
+	      - /python ci.py $GKEPROJECT
+	    env:
+	      - key: GKEPROJECT
+	        value: <YOUR PROJECT>
 
 Then provision it via:
 
     kubectl apply -f deployment.
 
 After that, you should be good to go!
+
+
+## CI for your CI
+
+Alternatively, you could also make a private fork of this repository,
+and then mirror that to Google Source Repository, and actually have `gke_ci`
+self-upgrade! I think, conceptually, even in that case it would not miss any
+triggering other deploys when it itself upgrades, although that might require
+removing the "try-finally" block in the `run` function to fully eliminate the
+potential gap).
+
+Use the same `deployment.yaml` from above.
+
+Anyway, pretty remarkable in my mind to have a CI system that deploy itself!
