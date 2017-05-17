@@ -47,28 +47,31 @@ I actually deploy using the third method described below):
     docker tag CONTAINER_ID gcr.io/$GP/gke-ci:0.1
     gcloud docker -- push gcr.io/$GP/gke-ci
 
-Then create a deployment.yaml:
+Then create a deployment.yaml (replacing `larson-deployment` with
+your project id):
 
-    apiVersion: extensions/v1beta1
-    kind: Deployment
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: gke-ci
+spec:
+  replicas: 1
+  template:
     metadata:
-      name: gke_ci
+      labels:
+         app: gke-ci
     spec:
-      replicas: 1
-      template:
-        metadata:
-          labels:
-            app: gke_ci
-        spec:
-          containers:
-          - image: gcr.io/<YOUR PROJECT>/gke_ci:0.1
-            imagePullPolicy: Always
-            name: gke_ci
-	    command:
-	      - /python ci.py $GKEPROJECT
-	    env:
-	      - key: GKEPROJECT
-	        value: <YOUR PROJECT>
+      containers:
+        - image: gcr.io/larson-deployment/gke-ci:0.1
+          imagePullPolicy: Always
+          name: gke-ci
+          command: ["/python ci.py"]
+          args: ["$GKEPROJECT"]
+          env:
+            - name: GKEPROJECT
+              value: larson-deployment
+```
 
 Then provision it via:
 
