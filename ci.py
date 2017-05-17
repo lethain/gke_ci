@@ -37,7 +37,6 @@ def handle(msg, loc, ignore):
                                 print "[%s] Upgrading from %s to use %s" % (repo, old_image, image)
                                 curr_cont['image'] = image
                                 changed = True
-
                         if changed:
                             update = {"spec": {"template": {"spec": {"containers": curr_containers}}}}
                             headers = {'Content-Type': 'application/strategic-merge-patch+json'}
@@ -55,12 +54,10 @@ def deployments(cli, loc, ignore):
     deps = cli.get("%s/apis/extensions/v1beta1/deployments" % (loc,)).json()['items']
     for dep in deps:
         name = dep['metadata']['name']
-        # TODO: add some kind of tag in the deployment to indicate
-        #       they should be considered as opposed to defaulting
-        #       everything in
+        # TODO: add some kind of tag in the deployment to indicate they
+        #       should be considered as opposed to defaulting everything in
         if dep['metadata']['namespace'] in ignore:
             continue
-
         print 'found deployment: %s' % (name,)
         containers = dep['spec']['template']['spec']['containers']
         for container in containers:
@@ -73,7 +70,6 @@ def build_k8s_cli():
     s = requests.Session()
     s.verify = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
     return s
-#return lambda method, path : s.request(method, "%s%s" % (loc, path))
 
 
 def run(loc, project, ignore, delay):
@@ -89,7 +85,6 @@ def run(loc, project, ignore, delay):
             finally:
                 s.acknowledge([ack_id])
         time.sleep(delay)
-
 
 
 def main():
