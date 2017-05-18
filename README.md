@@ -57,7 +57,7 @@ I actually deploy using the third method described below):
     gcloud docker -- push gcr.io/$GP/gke-ci
 
 Then create a deployment.yaml (replacing `larson-deployment` with
-your project id):
+your project id, and `file-with-secrets.json` with the secrets file you upload):
 
 ```
 apiVersion: extensions/v1beta1
@@ -75,7 +75,7 @@ spec:
         - image: gcr.io/larson-deployment/gke-ci:0.1
           env:
             - name: "GOOGLE_APPLICATION_CREDENTIALS"
-              value: "/var/run/secret/cloud.google.com/larson-deployment-3e1d818c0c5c.json"
+              value: "/var/run/secret/cloud.google.com/file-with-secrets.json"
           volumeMounts:
             - name: "service-account"
               mountPath: "/var/run/secret/cloud.google.com"
@@ -83,7 +83,6 @@ spec:
           name: gke-ci
           command: ["/usr/bin/python"]
           args: ["ci.py", "gke_ci"]
-          args: ["larson-deployment"]
       volumes:
         - name: "service-account"
           secret:
