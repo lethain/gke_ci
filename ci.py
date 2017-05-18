@@ -13,6 +13,8 @@ from collections import defaultdict
 from google.cloud import pubsub
 
 
+
+
 def handle(msg, loc, ignore):
     print "handle: %s\n%s" % (msg.data, msg.attributes)
     data = json.loads(msg.data)
@@ -41,7 +43,9 @@ def handle(msg, loc, ignore):
                                 changed = True
                         if changed:
                             update = {"spec": {"template": {"spec": {"containers": curr_containers}}}}
-                            headers = {'Content-Type': 'application/strategic-merge-patch+json'}
+                            headers = {
+                                'Content-Type': 'application/strategic-merge-patch+json',
+                            }
                             r= ks.patch("%s%s" % (loc, dep_link), headers=headers, data=json.dumps(update))
                             print "[%s] %s from %s\n%s" % (repo, r.status_code, r.request.url, r.content)
 
@@ -71,6 +75,11 @@ def deployments(cli, loc, ignore):
 def build_k8s_cli():
     s = requests.Session()
     s.verify = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+    try:
+        creds = open('/var/run/secrets/kubernetes.io/serviceaccount/ca.crt', 'r').read()
+        headers = {'Authorization': 'Bearer %s' % creds}        
+    except:
+        pass
     return s
 
 
