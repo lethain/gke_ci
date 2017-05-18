@@ -77,7 +77,7 @@ def build_k8s_cli():
     s.verify = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
     try:
         creds = open('/var/run/secrets/kubernetes.io/serviceaccount/ca.crt', 'r').read()
-        headers = {'Authorization': 'Bearer %s' % creds}        
+        s.headers = {'Authorization': 'Bearer %s' % creds}
     except:
         pass
     return s
@@ -94,8 +94,8 @@ def run(loc, project, ignore, delay):
         for ack_id, message in pulled:
             try:
                 handle(message, loc, ignore)
-                s.acknowledge([ack_id])                
-            except Exception, e:                
+                s.acknowledge([ack_id])
+            except Exception, e:
                 print "failed handling: %s\nattrs: %s\ndata: %s" % (e, message.attributes, message.data)
                 ex_type, ex, tb = sys.exc_info()
                 traceback.print_tb(tb)
