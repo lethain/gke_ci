@@ -43,7 +43,7 @@ def handle(msg, loc, ignore):
                                 changed = True
                         if changed:
                             update = {"spec": {"template": {"spec": {"containers": curr_containers}}}}
-                            headers = copy.deepcopy(s.headers)
+                            headers = copy.deepcopy(ks.headers)
                             headers['Content-Type'] = 'application/strategic-merge-patch+json'
                             r= ks.patch("%s%s" % (loc, dep_link), headers=headers, data=json.dumps(update))
                             print "[%s] %s from %s\n%s" % (repo, r.status_code, r.request.url, r.content)
