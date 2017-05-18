@@ -12,7 +12,7 @@ from google.cloud import pubsub
 
 
 def handle(msg, loc, ignore):
-    print msg.attributes
+    print "handle: %s\n%s" % (msg.data, msg.attributes)
     data = json.loads(msg.data)
     status = msg.attributes['status']
     logUrl = data['logUrl']
@@ -84,7 +84,7 @@ def run(loc, project, ignore, delay):
             try:
                 handle(message, loc, ignore)
             except Exception, e:
-                print "failed handling: %s\n%s" % (e, message)
+                print "failed handling: %s\nattrs: %s\ndata: %s" % (e, message.attributes, message.data)
             finally:
                 s.acknowledge([ack_id])
 
