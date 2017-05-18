@@ -1,5 +1,7 @@
 # gke_ci
 
+*([Short blog post announcing this project](https://lethain.com/simple-continuous-deployment-on-gke-with-gke-ci/))*
+
 Using [Google Container Builder](https://cloud.google.com/container-builder/docs/),
 you can go from pushing code to having a new container built and uploaded into
 [Google Container Registry](https://cloud.google.com/container-registry/), but
@@ -35,29 +37,24 @@ Then:
 
 Then trigger a build on Google Container Builder and you're good to go.
 
-## Run on GKE
+## Create a `deployment.yaml`
 
-First, you'll need to [create a service account](https://console.cloud.google.com/apis/credentials/serviceaccountkey)
-for consuming the PubSub messages, perhaps name it `service-account-gke-ci`. Give it the 'Pub/Sub Admin' role.
-(It really should only need `Pub/Sub Subscriber`, but it simply didn't work when I tried, but probably some kind
-of mistake while I iterated!)
+There are two ways to deploy, either forking the repository and adding `gke_ci` to
+your continuous build pipeline, or to checkout the repository, build it once and
+upload it to your private registry.
 
-Download the json secrets and then upload them to Kubernetes:
+In both cases, you'll need to create a `deployment.yaml` to configure the deployment
+and do some setup on Google to create resources:
 
-    kubectl create secret generic gke-ci --from-file ./file-with-secrets.json
+1. First, you'll need to [create a service account](https://console.cloud.google.com/apis/credentials/serviceaccountkey)
+    for consuming the PubSub messages, perhaps name it `service-account-gke-ci`. Give it the 'Pub/Sub Admin' role.
+2. Download the secrets for that service account, and upload them:
 
-Next, we need to build the container and upload it (I've had some trouble getting these instructions work,
-I actually deploy using the third method described below):
+        kubectl create secret generic gke-ci --from-file ./file-with-secrets.json
 
-    export GP="your-project"
-    git clone git@github.com:lethain/gke_ci.git
-    gcloud docker -a
-    docker build -t gcr.io/$GP/gke-ci .
-    docker tag CONTAINER_ID gcr.io/$GP/gke-ci:0.1
-    gcloud docker -- push gcr.io/$GP/gke-ci
+3. Create a PubSub Subscriber for the `cloud_builds` topic, name it `gke_ci`.
 
-Then create a deployment.yaml (replacing `larson-deployment` with
-your project id, and `file-with-secrets.json` with the secrets file you upload):
+Finally, create your `deployment.yaml`:
 
 ```
 apiVersion: extensions/v1beta1
@@ -98,13 +95,27 @@ After that, you should be good to go!
 
 ## CI for your CI
 
-Alternatively, you could also make a private fork of this repository,
+The easiest way to get the container in your private repo is
+to make a private fork of this repository,
 and then mirror that to Google Source Repository, and actually have `gke_ci`
 self-upgrade! I think, conceptually, even in that case it would not miss any
 triggering other deploys when it itself upgrades, although that might require
 removing the "try-finally" block in the `run` function to fully eliminate the
 potential gap).
 
-Use the same `deployment.yaml` from above.
-
 Anyway, pretty remarkable in my mind to have a CI system that deploy itself!
+
+## Building `Dockerfile` manually
+
+Build the container yourself via
+(I've had some trouble getting these instructions work,
+I actually deploy using the third method described below):
+
+    export GP="your-project"
+    git clone git@github.com:lethain/gke_ci.git
+    gcloud docker -a
+    docker build -t gcr.io/$GP/gke-ci .
+    docker tag CONTAINER_ID gcr.io/$GP/gke-ci:0.1
+    gcloud docker -- push gcr.io/$GP/gke-ci
+
+Your deployment should detect the image and upgrade appropriately.
