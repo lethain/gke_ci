@@ -74,17 +74,19 @@ def build_k8s_cli():
 
 def run(loc, project, ignore, delay):
     "Loop endlessly checking for builds."
-    client = pubsub.Client()
-    topic = client.topic('cloud_builds')
-    s = pubsub.subscription.Subscription(project, topic=topic)
+    print "getting started listening on %s" % (project,)
     while True:
+        client = pubsub.Client()
+        topic = client.topic('cloud_builds')
+        s = pubsub.subscription.Subscription(project, topic=topic)
         pulled = s.pull(max_messages=10)
         for ack_id, message in pulled:
             try:
                 handle(message, loc, ignore)
-                s.acknowledge([ack_id])
             except Exception, e:
                 print "failed handling: %s\n%s" % (e, message)
+            finally:
+                s.acknowledge([ack_id])
 
         time.sleep(delay)
 
@@ -93,7 +95,7 @@ def main():
     p = argparse.ArgumentParser(description='Continuous integration for GKE.')
     p.add_argument('project', help='name of GCE project')
     p.add_argument('--loc', default='https://kubernetes', help='location to access Kubernetes API')
-    p.add_argument('--delay', type=int, default=1.0, help='delay between checking for messages')
+    p.add_argument('--delay', type=int, default=15.0, help='delay between checking for messages')
     p.add_argument('--ignore', default='kube-system', help='csv of namespaces to ignore')
     args = p.parse_args()
     run(args.loc, args.project, args.ignore.split(','), args.delay)
