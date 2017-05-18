@@ -1,5 +1,7 @@
 # gke_ci
 
+![Diagram showing deployment pipeline for GKE-CI](./gke_ci.png)
+
 *([Short blog post announcing this project](https://lethain.com/simple-continuous-deployment-on-gke-with-gke-ci/))*
 
 Using [Google Container Builder](https://cloud.google.com/container-builder/docs/),
