@@ -82,8 +82,10 @@ def run(loc, project, ignore, delay):
         for ack_id, message in pulled:
             try:
                 handle(message, loc, ignore)
-            finally:
                 s.acknowledge([ack_id])
+            except Exception, e:
+                print "failed handling: %s\n%s" % (e, message)
+
         time.sleep(delay)
 
 

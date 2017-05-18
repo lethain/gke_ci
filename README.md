@@ -37,7 +37,16 @@ Then trigger a build on Google Container Builder and you're good to go.
 
 ## Run on GKE
 
-First, we need to build the container and upload it (I've had some trouble getting these instructions work,
+First, you'll need to [create a service account](https://console.cloud.google.com/apis/credentials/serviceaccountkey)
+for consuming the PubSub messages, perhaps name it `service-account-gke-ci`. Give it the 'Pub/Sub Admin' role.
+(It really should only need `Pub/Sub Subscriber`, but it simply didn't work when I tried, but probably some kind
+of mistake while I iterated!)
+
+Download the json secrets and then upload them to Kubernetes:
+
+    kubectl create secret generic gke-ci --from-file ./file-with-secrets.json
+
+Next, we need to build the container and upload it (I've had some trouble getting these instructions work,
 I actually deploy using the third method described below):
 
     export GP="your-project"
@@ -64,13 +73,21 @@ spec:
     spec:
       containers:
         - image: gcr.io/larson-deployment/gke-ci:0.1
+          env:
+            - name: "GOOGLE_APPLICATION_CREDENTIALS"
+              value: "/var/run/secret/cloud.google.com/larson-deployment-3e1d818c0c5c.json"
+          volumeMounts:
+            - name: "service-account"
+              mountPath: "/var/run/secret/cloud.google.com"
           imagePullPolicy: Always
           name: gke-ci
-          command: ["/python ci.py"]
-          args: ["$GKEPROJECT"]
-          env:
-            - name: GKEPROJECT
-              value: larson-deployment
+          command: ["/usr/bin/python"]
+          args: ["ci.py", "gke_ci"]
+          args: ["larson-deployment"]
+      volumes:
+        - name: "service-account"
+          secret:
+            secretName: gke-ci
 ```
 
 Then provision it via:
