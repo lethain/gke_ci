@@ -79,7 +79,7 @@ def run(loc, project, ignore, delay):
         client = pubsub.Client()
         topic = client.topic('cloud_builds')
         s = pubsub.subscription.Subscription(project, topic=topic)
-        pulled = s.pull(max_messages=10)
+        pulled = s.pull(max_messages=1)
         for ack_id, message in pulled:
             try:
                 handle(message, loc, ignore)
