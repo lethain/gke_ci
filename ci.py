@@ -13,9 +13,8 @@ from collections import defaultdict
 from google.cloud import pubsub
 
 
-
-
 def handle(msg, loc, ignore):
+    "Handle individual PubSub messages."
     print "handle: %s\n%s" % (msg.data, msg.attributes)
     data = json.loads(msg.data)
     status = msg.attributes['status']
@@ -55,6 +54,7 @@ def container_without_tag(con_str):
 
 
 def deployments(cli, loc, ignore):
+    "Build map of containers to deployment configs."
     container_dep = defaultdict(list)
     deps = cli.get("%s/apis/extensions/v1beta1/deployments" % (loc,)).json()['items']
     for dep in deps:
@@ -72,6 +72,7 @@ def deployments(cli, loc, ignore):
 
 
 def build_k8s_cli():
+    "Setup authenticated Kubernetes API client."
     s = requests.Session()
     s.verify = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
     try:
@@ -104,6 +105,7 @@ def run(loc, project, ignore, delay):
 
 
 def main():
+    "Parse args, start the program."
     p = argparse.ArgumentParser(description='Continuous integration for GKE.')
     p.add_argument('project', help='name of GCE project')
     p.add_argument('--loc', default='https://kubernetes', help='location to access Kubernetes API')
