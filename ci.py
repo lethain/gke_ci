@@ -1,6 +1,8 @@
 """
 Simple Google PubSub queue consumer to update Kubernetes.
 """
+import sys
+import traceback
 import copy
 import argparse
 import pprint
@@ -83,10 +85,12 @@ def run(loc, project, ignore, delay):
         for ack_id, message in pulled:
             try:
                 handle(message, loc, ignore)
-            except Exception, e:
+                s.acknowledge([ack_id])                
+            except Exception, e:                
                 print "failed handling: %s\nattrs: %s\ndata: %s" % (e, message.attributes, message.data)
-            finally:
-                s.acknowledge([ack_id])
+                ex_type, ex, tb = sys.exc_info()
+                traceback.print_tb(tb)
+                del tb
 
         time.sleep(delay)
 
