@@ -74,10 +74,10 @@ spec:
         - image: gcr.io/larson-deployment/gke-ci:0.1
           env:
             - name: "GOOGLE_APPLICATION_CREDENTIALS"
-              value: "/var/run/secret/cloud.google.com/file-with-secrets.json"
+              value: "/var/run/secrets/cloud.google.com/file-with-secrets.json"
           volumeMounts:
             - name: "service-account"
-              mountPath: "/var/run/secret/cloud.google.com"
+              mountPath: "/var/run/secrets/cloud.google.com"
           imagePullPolicy: Always
           name: gke-ci
           command: ["/usr/bin/python"]
