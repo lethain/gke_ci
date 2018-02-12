@@ -24,11 +24,11 @@ def handle(msg, loc, ignore):
     ks = build_k8s_cli()
     if status == 'SUCCESS':
         print "[%s] Build succeeded." % (repo,)
-        deps = deployments(ks, loc, ignore)
+        all_deployments = deployments(ks, loc, ignore)
         for image in images:
             print "[%s] Updated %s." % (repo, image)
             wo_tag = container_without_tag(image)
-            for dep_cont, deps in deps.iteritems():
+            for dep_cont, deps in all_deployments.iteritems():
                 for dep in deps:
                     if wo_tag == dep_cont:
                         changed = False
