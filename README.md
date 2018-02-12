@@ -56,6 +56,25 @@ and do some setup on Google to create resources:
 
 3. Create a PubSub Subscriber for the `cloud_builds` topic, name it `gke_ci`.
 
+4. If your cluster has
+    [RBAC](https://kubernetes.io/docs/admin/authorization/rbac/)
+    enabled, you need to enable access to the Kubernetes API for the
+    pod.  This can be done by creating a new service account:
+
+```
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gke-ci
+```
+
+And then giving it permission to edit deployments:
+
+        kubectl create clusterrolebinding gke-ci-admin \
+          --clusterrole=cluster-admin \
+          --serviceaccount=default:gke-ci \
+          --namespace=default
+
 Finally, create your `deployment.yaml`:
 
 ```
@@ -86,6 +105,7 @@ spec:
         - name: "service-account"
           secret:
             secretName: gke-ci
+      serviceAccountName: gke-ci # if RBAC is enabled
 ```
 
 Then provision it via:
